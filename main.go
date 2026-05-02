@@ -8,10 +8,8 @@ import (
 var devMode string
 
 func main() {
-	dev := false
-	if devMode == "true" {
-		dev = true
-	}
+	dev := devMode == "true"
+
 	store := store.NewStore(dev)
 	store.Init()
 
