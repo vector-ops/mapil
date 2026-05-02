@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/vector-ops/mapil/database"
 	"github.com/vector-ops/mapil/helpers"
@@ -93,7 +92,7 @@ func (s *Store) GetKeys() []string {
 
 type DataObject struct {
 	Key   string
-	Value string
+	Value []string
 }
 
 func (s *Store) GetAllData() []DataObject {
@@ -104,7 +103,7 @@ func (s *Store) GetAllData() []DataObject {
 		case database.ListType:
 			do = append(do, DataObject{
 				Key:   kv.GetKey(),
-				Value: strings.Join(kv.GetValue().([]string), ", "),
+				Value: kv.GetValue().([]string),
 			})
 		}
 	}
