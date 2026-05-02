@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -28,7 +27,10 @@ var getCmd = &cobra.Command{
 		if len(values) == 0 {
 			fmt.Println("Key not found.")
 		} else {
-			fmt.Println(key, ": ", strings.Join(values, ", "))
+			fmt.Printf("  %s%s%s %s[%d]%s\n", Underline, key, Reset, DarkGrey, len(values), Reset)
+			for i, v := range values {
+				fmt.Printf("   %s%d.%s %s\n", DarkGrey, i+1, Reset, v)
+			}
 		}
 	},
 }
