@@ -3,7 +3,7 @@ package database
 import "encoding/json"
 
 const (
-	LIST_TYPE = "list"
+	List = "list"
 )
 
 type KeyValue interface {
@@ -26,7 +26,7 @@ func (lt ListType) GetValue() interface{} {
 }
 
 func (lt ListType) GetType() string {
-	return LIST_TYPE
+	return List
 }
 
 type KVWrapper struct {

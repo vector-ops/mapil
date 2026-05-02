@@ -79,7 +79,7 @@ func (s *Store) GetValue(key string) ([]string, error) {
 	}
 
 	switch keyval.GetType() {
-	case database.LIST_TYPE:
+	case database.List:
 		return keyval.GetValue().([]string), nil
 	default:
 		return nil, ErrUnsupportedValue

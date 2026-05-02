@@ -20,7 +20,7 @@ func Serialize(data []database.KeyValue) ([]byte, error) {
 				return nil, err
 			}
 			wrappedItems = append(wrappedItems, database.KVWrapper{
-				Type: database.LIST_TYPE,
+				Type: database.List,
 				Data: lbuf,
 			})
 		}
@@ -45,7 +45,7 @@ func Deserialize(data []byte) ([]database.KeyValue, error) {
 	for _, item := range wrappedItems {
 		var obj database.KeyValue
 		switch item.Type {
-		case database.LIST_TYPE:
+		case database.List:
 			var lt database.ListType
 			err = json.Unmarshal(item.Data, &lt)
 			if err != nil {
