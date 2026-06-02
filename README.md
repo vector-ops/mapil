@@ -95,6 +95,7 @@ Data store empty.
 ## TODO
 
 -   [ ] Terminal UI
+-   [ ] Namespaces
 -   [ ] Data synchronization with multiple devices
 -   [ ] Optional data encryption
 -   [ ] Import and store bookmarks and passwords
