@@ -13,11 +13,19 @@ var apdCmd = &cobra.Command{
 	Short: "Append to an object",
 	Long:  `Append one or more values to the list`,
 	Run: func(cmd *cobra.Command, args []string) {
-		apdObj()
+		apdObj(args)
 	},
 }
 
-func apdObj() {
+func apdObj(args []string) {
+
+	var key string
+	var err error
+
+	if len(args) > 0 {
+		key = args[0]
+	}
+
 	keys := DataStore.GetKeys()
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
@@ -37,11 +45,14 @@ func apdObj() {
 		Templates: selectTemplates,
 	}
 
-	_, key, err := selectPrompt.Run()
-	if err != nil {
-		fmt.Printf("Prompt cancelled %s\n", err)
-		return
+	if len(key) == 0 {
+		_, key, err = selectPrompt.Run()
+		if err != nil {
+			fmt.Printf("Prompt cancelled %s\n", err)
+			return
+		}
 	}
+
 	validate := func(input string) error {
 		if input == "" {
 			return fmt.Errorf("name should not be empty")

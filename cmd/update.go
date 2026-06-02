@@ -11,13 +11,20 @@ import (
 var updCmd = &cobra.Command{
 	Use:   "upd",
 	Short: "Update an object",
-	Long:  `Update an object from the list`,
+	Long:  `Update all the values in the key`,
 	Run: func(cmd *cobra.Command, args []string) {
-		updObj()
+		updObj(args)
 	},
 }
 
-func updObj() {
+func updObj(args []string) {
+	var key string
+	var err error
+
+	if len(args) > 0 {
+		key = args[0]
+	}
+
 	keys := DataStore.GetKeys()
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
@@ -37,17 +44,21 @@ func updObj() {
 		Templates: selectTemplates,
 	}
 
-	_, key, err := selectPrompt.Run()
-	if err != nil {
-		fmt.Printf("Prompt cancelled %s\n", err)
-		return
+	if len(key) == 0 {
+		_, key, err = selectPrompt.Run()
+		if err != nil {
+			fmt.Printf("Prompt cancelled %s\n", err)
+			return
+		}
 	}
+
 	validate := func(input string) error {
 		if input == "" {
 			return fmt.Errorf("name should not be empty")
 		}
 		return nil
 	}
+
 	templates := &promptui.PromptTemplates{
 		Prompt:  "{{ . }} ",
 		Valid:   "{{ . | bold }} ",
@@ -56,7 +67,7 @@ func updObj() {
 	}
 
 	valuePrompt := promptui.Prompt{
-		Label:     "? Enter the new value: ",
+		Label:     "? Enter the new value(s): ",
 		Templates: templates,
 		Validate:  validate,
 	}

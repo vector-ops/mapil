@@ -12,11 +12,18 @@ var delCmd = &cobra.Command{
 	Short: "Delete an object",
 	Long:  `Delete an object from the list`,
 	Run: func(cmd *cobra.Command, args []string) {
-		delObj()
+		delObj(args)
 	},
 }
 
-func delObj() {
+func delObj(args []string) {
+	var key string
+	var err error
+
+	if len(args) > 0 {
+		key = args[0]
+	}
+
 	if *delAll {
 		DataStore.DeleteAll()
 		DataStore.Persist()
@@ -42,11 +49,14 @@ func delObj() {
 		Templates: templates,
 	}
 
-	_, key, err := keyPrompt.Run()
-	if err != nil {
-		fmt.Println("Prompt cancelled")
-		return
+	if len(key) == 0 {
+		_, key, err = keyPrompt.Run()
+		if err != nil {
+			fmt.Println("Prompt cancelled")
+			return
+		}
 	}
+
 	DataStore.DeleteValue(key)
 	err = DataStore.Persist()
 	if err != nil {

@@ -13,11 +13,18 @@ var addCmd = &cobra.Command{
 	Short: "List all objects",
 	Long:  `All objects stored are listed`,
 	Run: func(cmd *cobra.Command, args []string) {
-		addObj()
+		addObj(args)
 	},
 }
 
-func addObj() {
+func addObj(args []string) {
+	var key string
+	var err error
+
+	if len(args) > 0 {
+		key = args[0]
+	}
+
 	validate := func(input string) error {
 		if input == "" {
 			return fmt.Errorf("name should not be empty")
@@ -38,16 +45,19 @@ func addObj() {
 	}
 
 	valuePrompt := promptui.Prompt{
-		Label:     "? Enter the value:",
+		Label:     "? Enter the value(s):",
 		Templates: templates,
 		Validate:  validate,
 	}
 
-	key, err := keyPrompt.Run()
-	if err != nil {
-		fmt.Printf("Prompt cancelled %s\n", err)
-		return
+	if len(key) == 0 {
+		key, err = keyPrompt.Run()
+		if err != nil {
+			fmt.Printf("Prompt cancelled %s\n", err)
+			return
+		}
 	}
+
 	value, err := valuePrompt.Run()
 	if err != nil {
 		fmt.Printf("Prompt cancelled %s\n", err)
