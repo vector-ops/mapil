@@ -8,7 +8,7 @@ import (
 
 var getCmd = &cobra.Command{
 	Use:   "get",
-	Short: "get a key",
+	Short: "Get a key",
 	Long:  `Use key to get the value`,
 	Run: func(cmd *cobra.Command, args []string) {
 		key := ""
