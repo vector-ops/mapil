@@ -46,6 +46,8 @@ func init() {
 	rootCmd.AddCommand(updCmd)
 	rootCmd.AddCommand(apdCmd)
 	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(popCmd)
+	rootCmd.AddCommand(rmCmd)
 
 	// Delete Flags
 	delAll = delCmd.PersistentFlags().BoolP("all", "a", false, "delete all the data in the data store.")
