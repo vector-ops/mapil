@@ -24,72 +24,9 @@ go install github.com/vector-ops/mapil@latest
 
 ## Usage
 
-Mapil provides the following commands:
-
-### 1. `mapil add`
-
-Use this command to add a new key value pair to your Mapil keyring. You will be prompted to enter the name and key.
-To add multiple values to the same key use comma separated values.
-It trims the spaces at the start and end of the values.
-
+Use the help command
 ```bash
-mapil add
-```
-
-### 3. `mapil list`
-
-List all the data currently stored in your Mapil keyring.
-
-```bash
-mapil list
-```
-
-### 4. `mapil upd`
-
-Update an existing key in your Mapil keyring. You'll be presented with a list of key names, and you can choose the one you want to update.
-Currently you will not be able to update individual values in a list.
-
-```bash
-mapil upd
-```
-
-### 5. `mapil del`
-
-Delete a key from your Mapil keyring. You'll be presented with a list of key names, and you can choose the one you want to delete. You can also use the `-a` flag to delete all keys.
-
-```bash
-mapil del
-mapil del -a
-```
-
-## Example
-
-```bash
-$ mapil add
-? Enter a name for the key: MyKey
-? Enter the value: MyValue
-MyKey successfully added to Mapil keyring.
-
-$ mapil add
-? Enter a name for the key: MyListKey
-? Enter the value: MyValue1, MyValue2, MyValue3, MyValue4
-MyKey successfully added to Mapil keyring.
-
-$ mapil key list
-MyKey: MyValue
-MyListKey: MyValue1, MyValue2, MyValue3, MyValue4
-
-$ mapil key upd
-? Choose a key to update: MyKey
-? Enter the new value: MyNewValue
-MyKey updated.
-
-$ mapil key del
-? Choose a key to delete: MyKey
-MyKey deleted.
-
-$ mapil key list
-Data store empty.
+mapil -h
 ```
 
 ## TODO
