@@ -19,9 +19,10 @@ var (
 	delAll *bool
 
 	rootCmd = &cobra.Command{
-		Use:   "mapil",
-		Short: "Mapil is used to store and access lists from CLI.",
-		Long:  `Mapil is a CLI based tool to store and view lists on the command line. It allows you to create different lists on the command line and store api keys, bookmarks, todo lists etc.`,
+		Use:     "mapil",
+		Aliases: []string{"mpl"},
+		Short:   "Mapil is used to store and access lists from CLI.",
+		Long:    `Mapil is a CLI based tool to store and view lists on the command line. It allows you to create different lists on the command line and store api keys, bookmarks, todo lists etc.`,
 		Run: func(cmd *cobra.Command, args []string) {
 		},
 	}
