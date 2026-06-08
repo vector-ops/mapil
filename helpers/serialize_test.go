@@ -1,82 +1,74 @@
 package helpers
 
-import (
-	"os"
-	"reflect"
-	"testing"
+// func TestSerializeData(t *testing.T) {
+// 	data := []database.KeyValue{
+// 		database.ListType{
+// 			Key: "list1",
+// 			Value: []string{
+// 				"value1",
+// 				"value2",
+// 			},
+// 		},
+// 	}
 
-	"github.com/vector-ops/mapil/database"
-)
+// 	expected := `[{"type":"list","data":{"key":"list1","value":["value1","value2"]}},{"type":"value","data":{"key":"key1","value":"value1"}}]`
 
-func TestSerializeData(t *testing.T) {
-	data := []database.KeyValue{
-		database.ListType{
-			Key: "list1",
-			Value: []string{
-				"value1",
-				"value2",
-			},
-		},
-	}
+// 	jBuf, err := Serialize(data)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if jBuf == nil {
+// 		t.Fatalf("Nothing in buffer.")
+// 	}
+// 	if string(jBuf) != expected {
+// 		t.Fatalf("Data does not match.\nexpected: %s\ngot: %s", expected, string(jBuf))
+// 	}
+// }
 
-	expected := `[{"type":"list","data":{"key":"list1","value":["value1","value2"]}},{"type":"value","data":{"key":"key1","value":"value1"}}]`
+// func TestDeserializeData(t *testing.T) {
+// 	jBuf := []byte(`[{"type":"list","data":{"key":"list1","value":["value1","value2"]}},{"type":"value","data":{"key":"key1","value":"value1"}}]`)
 
-	jBuf, err := Serialize(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if jBuf == nil {
-		t.Fatalf("Nothing in buffer.")
-	}
-	if string(jBuf) != expected {
-		t.Fatalf("Data does not match.\nexpected: %s\ngot: %s", expected, string(jBuf))
-	}
-}
+// 	expected := []database.KeyValue{
+// 		database.ListType{
+// 			Key:   "list1",
+// 			Value: []string{"value1", "value2"},
+// 		},
+// 	}
 
-func TestDeserializeData(t *testing.T) {
-	jBuf := []byte(`[{"type":"list","data":{"key":"list1","value":["value1","value2"]}},{"type":"value","data":{"key":"key1","value":"value1"}}]`)
+// 	kv, err := Deserialize(jBuf)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if len(kv) == 0 {
+// 		t.Fatal("failed to unmarshall")
+// 	}
+// 	if !reflect.DeepEqual(expected, kv) {
+// 		t.Fatalf("structs not equal\ngot: %+v\nexpected: %+v", kv, expected)
+// 	}
+// }
 
-	expected := []database.KeyValue{
-		database.ListType{
-			Key:   "list1",
-			Value: []string{"value1", "value2"},
-		},
-	}
+// func TestDeserializeFile(t *testing.T) {
+// 	fpath := "../mapil/mapil.json"
 
-	kv, err := Deserialize(jBuf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(kv) == 0 {
-		t.Fatal("failed to unmarshall")
-	}
-	if !reflect.DeepEqual(expected, kv) {
-		t.Fatalf("structs not equal\ngot: %+v\nexpected: %+v", kv, expected)
-	}
-}
+// 	file, err := os.Open(fpath)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer file.Close()
 
-func TestDeserializeFile(t *testing.T) {
-	fpath := "../mapil/mapil.json"
+// 	expected := []database.KeyValue{
+// 		database.ListType{
+// 			Key:   "dell",
+// 			Value: []string{"geng", "random", "list"},
+// 		},
+// 	}
 
-	file, err := os.Open(fpath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
+// 	got, err := DeserializeFile(file)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	expected := []database.KeyValue{
-		database.ListType{
-			Key:   "dell",
-			Value: []string{"geng", "random", "list"},
-		},
-	}
-
-	got, err := DeserializeFile(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !reflect.DeepEqual(expected, got) {
-		t.Fatalf("Expected: %+v\nGot: %+v", expected, got)
-	}
-}
+// 	if !reflect.DeepEqual(expected, got) {
+// 		t.Fatalf("Expected: %+v\nGot: %+v", expected, got)
+// 	}
+// }

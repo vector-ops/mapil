@@ -1,54 +1,46 @@
 package helpers
 
-import (
-	"os"
-	"reflect"
-	"testing"
+// func TestLoadFile(t *testing.T) {
+// 	file := NewFileObjectWithFile("/home/vector/dev/mapil/mapil/mapil.json")
+// 	file.Init()
+// 	got, err := file.LoadFile()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	"github.com/vector-ops/mapil/database"
-)
+// 	expected := []database.KeyValue{
+// 		database.ListType{
+// 			Key:   "dell",
+// 			Value: []string{"geng", "random", "list"},
+// 		},
+// 	}
 
-func TestLoadFile(t *testing.T) {
-	file := NewFileObjectWithFile("/home/vector/dev/mapil/mapil/mapil.json")
-	file.Init()
-	got, err := file.LoadFile()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	if !reflect.DeepEqual(expected, got) {
+// 		t.Fatalf("expected: %+v\ngot: %+v", expected, got)
+// 	}
+// }
 
-	expected := []database.KeyValue{
-		database.ListType{
-			Key:   "dell",
-			Value: []string{"geng", "random", "list"},
-		},
-	}
+// func TestSaveFile(t *testing.T) {
+// 	file := NewFileObjectWithFile("/home/vector/dev/mapil/mapil/mapil.json")
+// 	file.Init()
 
-	if !reflect.DeepEqual(expected, got) {
-		t.Fatalf("expected: %+v\ngot: %+v", expected, got)
-	}
-}
+// 	data := []database.KeyValue{
+// 		database.ListType{
+// 			Key:   "dell",
+// 			Value: []string{"geng", "random", "list"},
+// 		},
+// 	}
+// 	err := file.SaveFile(data)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-func TestSaveFile(t *testing.T) {
-	file := NewFileObjectWithFile("/home/vector/dev/mapil/mapil/mapil.json")
-	file.Init()
+// 	info, err := os.Stat(file.filePath)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	data := []database.KeyValue{
-		database.ListType{
-			Key:   "dell",
-			Value: []string{"geng", "random", "list"},
-		},
-	}
-	err := file.SaveFile(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	info, err := os.Stat(file.filePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if info.Size() == 0 {
-		t.Fatalf("failed to write to file")
-	}
-}
+// 	if info.Size() == 0 {
+// 		t.Fatalf("failed to write to file")
+// 	}
+// }

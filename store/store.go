@@ -7,41 +7,36 @@ import (
 	"path/filepath"
 
 	"github.com/vector-ops/mapil/database"
-	"github.com/vector-ops/mapil/helpers"
 )
 
 var ErrUnsupportedValue = errors.New("unsupported value")
 
 type Store struct {
 	data *database.Database
-	file *helpers.File
 }
 
 func NewStore(devMode bool) *Store {
-	var file *helpers.File
-
+	fp := ""
 	if devMode {
 		curDir, err := os.Getwd()
 		if err != nil {
 			curDir = "."
 		}
 
-		filePath := filepath.Join(curDir, "mapil.json")
-
-		file = helpers.NewFileObjectWithFile(filePath)
-	} else {
-		file = helpers.NewFileObject()
+		fp = filepath.Join(curDir, ".mapil", "mapil.json")
 	}
 
 	return &Store{
-		data: database.NewDatabase(),
-		file: file,
+		data: database.NewDatabase(fp),
 	}
 }
 
 func (s *Store) Init() error {
-	s.file.Init()
-	return s.LoadData()
+	return s.data.Init()
+}
+
+func (s *Store) Close() error {
+	return s.data.Close()
 }
 
 func (s *Store) AddList(key string, value []string) error {
@@ -110,21 +105,18 @@ func (s *Store) GetAllData() []DataObject {
 	return do
 }
 
-func (s *Store) LoadData() error {
-	data, err := s.file.LoadFile()
-	if err != nil {
-		return fmt.Errorf("failed to load data file")
+func (s *Store) GetAllData() []database.ListType {
+	data := s.data.GetAllObjects()
+	var do []database.ListType
+	for _, kv := range data {
+		switch kv.(type) {
+		case database.ListType:
+			do = append(do, database.ListType{
+				Key:       kv.GetKey(),
+				Value:     kv.GetValue().([]string),
+				Namespace: kv.GetNamespace(),
+			})
+		}
 	}
-	for _, v := range data {
-		s.data.AddObject(v)
-	}
-	return nil
-}
-
-func (s *Store) Persist() error {
-	err := s.file.SaveFile(s.data.GetAllObjects())
-	if err != nil {
-		return fmt.Errorf("failed to save file")
-	}
-	return nil
+	return do
 }

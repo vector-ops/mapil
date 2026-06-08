@@ -13,10 +13,27 @@ type Database struct {
 	List map[string]KeyValue `json:"list,omitempty"`
 }
 
-func NewDatabase() *Database {
+func NewDatabase(fp string) *Database {
+
+	file := NewFileObjectWithFile(fp)
+
 	return &Database{
 		List: make(map[string]KeyValue),
+		file: file,
 	}
+
+}
+
+func (d *Database) Init() error {
+	if err := d.file.Init(); err != nil {
+		return err
+	}
+
+	return d.LoadData()
+}
+
+func (d *Database) Close() error {
+	return d.persist()
 }
 
 func (d *Database) AddObject(kv KeyValue) error {
@@ -67,4 +84,26 @@ func (d *Database) GetAllKeys() []string {
 
 func (d *Database) DeleteObject(key string) {
 	delete(d.List, key)
+}
+
+func (d *Database) LoadData() error {
+
+	data, err := d.file.LoadFile()
+	if err != nil {
+		return fmt.Errorf("failed to load data file: %v", err)
+	}
+
+	for _, v := range data {
+		d.AddObject(v)
+	}
+
+	return nil
+}
+
+func (d *Database) persist() error {
+	err := d.file.SaveFile(d.GetAllObjects())
+	if err != nil {
+		return fmt.Errorf("failed to save file: %v", err)
+	}
+	return nil
 }
