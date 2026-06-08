@@ -1,7 +1,9 @@
+// Package database provides methods to interact with the data
 package database
 
 import (
 	"errors"
+	"fmt"
 )
 
 var (
@@ -11,6 +13,7 @@ var (
 
 type Database struct {
 	List map[string]KeyValue `json:"list,omitempty"`
+	file *File
 }
 
 func NewDatabase(fp string) *Database {
@@ -40,6 +43,7 @@ func (d *Database) AddObject(kv KeyValue) error {
 	if _, ok := d.List[kv.GetKey()]; ok {
 		return ErrConflictingKeys
 	}
+
 	d.List[kv.GetKey()] = kv
 	return nil
 }
@@ -66,6 +70,15 @@ func (d *Database) GetValue(key string) (interface{}, error) {
 	return nil, ErrKeyDoesNotExist
 }
 
+func (d *Database) GetNamespace(key string) (string, error) {
+
+	if kv, ok := d.List[key]; ok {
+		return kv.GetNamespace(), nil
+	}
+
+	return "", ErrKeyDoesNotExist
+}
+
 func (d *Database) GetAllObjects() []KeyValue {
 	var objs []KeyValue
 	for _, kv := range d.List {
@@ -80,6 +93,17 @@ func (d *Database) GetAllKeys() []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func (d *Database) GetNamespaceObjects(ns string) []KeyValue {
+	var objs []KeyValue
+	for _, kv := range d.List {
+		if kv.GetNamespace() == ns {
+			objs = append(objs, kv)
+		}
+	}
+
+	return objs
 }
 
 func (d *Database) DeleteObject(key string) {

@@ -1,13 +1,15 @@
+// Package store provides an abstraction over the database and manages data persistence
 package store
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/vector-ops/mapil/database"
 )
+
+const defaultNamespace = "default"
 
 var ErrUnsupportedValue = errors.New("unsupported value")
 
@@ -39,12 +41,19 @@ func (s *Store) Close() error {
 	return s.data.Close()
 }
 
-func (s *Store) AddList(key string, value []string) error {
-	return s.data.AddObject(database.ListType{Key: key, Value: value})
+func (s *Store) AddList(key string, value []string, namespace string) error {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+	return s.data.AddObject(database.ListType{Key: key, Value: value, Namespace: namespace})
 }
 
-func (s *Store) UpdateList(key string, value []string) error {
-	return s.data.UpdateObject(database.ListType{Key: key, Value: value})
+func (s *Store) UpdateList(key string, value []string, namespace string) error {
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
+	return s.data.UpdateObject(database.ListType{Key: key, Value: value, Namespace: namespace})
 }
 
 func (s *Store) AppendList(key string, value []string) error {
@@ -52,12 +61,19 @@ func (s *Store) AppendList(key string, value []string) error {
 	if err != nil {
 		return err
 	}
+
+	ns, err := s.GetNamespace(key)
+	if err != nil {
+		return err
+	}
+
 	existingValues = append(existingValues, value...)
-	return s.UpdateList(key, existingValues)
+	return s.UpdateList(key, existingValues, ns)
 }
 
-func (s *Store) DeleteValue(key string) {
+func (s *Store) DeleteValue(key string) error {
 	s.data.DeleteObject(key)
+	return nil
 }
 
 func (s *Store) DeleteAll() {
@@ -85,20 +101,25 @@ func (s *Store) GetKeys() []string {
 	return s.data.GetAllKeys()
 }
 
-type DataObject struct {
-	Key   string
-	Value []string
+func (s *Store) GetNamespace(key string) (string, error) {
+	ns, err := s.data.GetNamespace(key)
+	if err != nil {
+		return "", err
+	}
+
+	return ns, nil
 }
 
-func (s *Store) GetAllData() []DataObject {
-	data := s.data.GetAllObjects()
-	var do []DataObject
+func (s *Store) GetNamespaceObjects(ns string) []database.ListType {
+	data := s.data.GetNamespaceObjects(ns)
+	var do []database.ListType
 	for _, kv := range data {
 		switch kv.(type) {
 		case database.ListType:
-			do = append(do, DataObject{
-				Key:   kv.GetKey(),
-				Value: kv.GetValue().([]string),
+			do = append(do, database.ListType{
+				Key:       kv.GetKey(),
+				Value:     kv.GetValue().([]string),
+				Namespace: kv.GetNamespace(),
 			})
 		}
 	}
