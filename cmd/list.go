@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/vector-ops/mapil/database"
 )
 
 const (
@@ -12,13 +13,27 @@ const (
 	DarkGrey  = "\033[90m"
 )
 
+var lsns *string
+
+func init() {
+	lsns = listCmd.PersistentFlags().StringP("namespace", "s", "", "list objects from namespace.\n if empty lists all objects")
+
+}
+
 var listCmd = &cobra.Command{
 	Use:     "list",
 	Short:   "List all objects",
 	Long:    `All objects stored are listed`,
 	Aliases: []string{"ls"},
 	Run: func(cmd *cobra.Command, args []string) {
-		data := DataStore.GetAllData()
+		data := []database.ListType{}
+
+		if *lsns != "" {
+			data = dataStore.GetNamespaceObjects(*lsns)
+		} else {
+			data = dataStore.GetAllData()
+		}
+
 		if len(data) == 0 {
 			fmt.Println("Data store empty.")
 		} else {

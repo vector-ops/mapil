@@ -26,7 +26,7 @@ func apdObj(args []string) {
 		key = args[0]
 	}
 
-	keys := DataStore.GetKeys()
+	keys := dataStore.GetKeys()
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -80,9 +80,7 @@ func apdObj(args []string) {
 
 	vals := helpers.CleanInput(value)
 
-	DataStore.AppendList(key, vals)
-
-	err = DataStore.Persist()
+	err = dataStore.AppendList(key, vals)
 	if err != nil {
 		fmt.Println(err)
 		return

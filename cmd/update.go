@@ -25,7 +25,7 @@ func updObj(args []string) {
 		key = args[0]
 	}
 
-	keys := DataStore.GetKeys()
+	keys := dataStore.GetKeys()
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -80,9 +80,7 @@ func updObj(args []string) {
 
 	vals := helpers.CleanInput(value)
 
-	DataStore.UpdateList(key, vals)
-
-	err = DataStore.Persist()
+	err = dataStore.UpdateList(key, vals, "")
 	if err != nil {
 		fmt.Println(err)
 		return

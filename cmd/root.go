@@ -12,24 +12,29 @@ import (
 )
 
 var (
-	DataStore *store.Store
+	dataStore *store.Store
 	info      debug.BuildInfo
 	Version   string
 
-	delAll *bool
-
 	rootCmd = &cobra.Command{
-		Use:     "mapil",
-		Aliases: []string{"mpl"},
-		Short:   "Mapil is used to store and access lists from CLI.",
-		Long:    `Mapil is a CLI based tool to store and view lists on the command line. It allows you to create different lists on the command line and store api keys, bookmarks, todo lists etc.`,
+		Use:   "mapil",
+		Short: "Mapil is used to store and access lists from CLI.",
+		Long:  `Mapil is a CLI based tool to store and view lists on the command line. It allows you to create different lists on the command line and store api keys, bookmarks, todo lists etc.`,
 		Run: func(cmd *cobra.Command, args []string) {
+		},
+
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			err := dataStore.Close()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 		},
 	}
 )
 
 func Execute(st *store.Store) {
-	DataStore = st
+	dataStore = st
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -50,8 +55,6 @@ func init() {
 	rootCmd.AddCommand(popCmd)
 	rootCmd.AddCommand(rmCmd)
 
-	// Delete Flags
-	delAll = delCmd.PersistentFlags().BoolP("all", "a", false, "delete all the data in the data store.")
 }
 
 func initConfig() {

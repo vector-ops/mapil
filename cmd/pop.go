@@ -25,7 +25,7 @@ func popObj(args []string) {
 		key = args[0]
 	}
 
-	keys := DataStore.GetKeys()
+	keys := dataStore.GetKeys()
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -52,21 +52,20 @@ func popObj(args []string) {
 		}
 	}
 
-	values, err := DataStore.GetValue(key)
+	values, err := dataStore.GetValue(key)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	if len(values) == 0 {
-		fmt.Println("key '%s' has no values", key)
+		fmt.Printf("key '%s' has no values", key)
 		return
 	}
 
 	values = values[:len(values)-1]
 
-	DataStore.UpdateList(key, values)
-	err = DataStore.Persist()
+	err = dataStore.UpdateList(key, values, "")
 	if err != nil {
 		fmt.Println(err)
 		return

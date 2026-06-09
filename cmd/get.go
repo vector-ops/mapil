@@ -6,6 +6,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var getns *string
+
+func init() {
+	getns = getCmd.PersistentFlags().StringP("namespace", "s", "", "get object from namespace, if empty gets from the default namespace")
+}
+
 var getCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Get a key",
@@ -19,12 +25,37 @@ var getCmd = &cobra.Command{
 			return
 		}
 
-		values, err := DataStore.GetValue(key)
-		if err != nil {
-			fmt.Println(err.Error())
-			return
+		var values []string
+		var err error
+
+		if *getns == "" {
+
+			values, err = dataStore.GetValue(key)
+			if err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+		} else {
+			objs := dataStore.GetNamespaceObjects(*getns)
+			var ok bool
+			for _, obj := range objs {
+				if obj.GetKey() == key {
+					values, ok = obj.GetValue().([]string)
+					if !ok {
+						fmt.Println("failed to assert type of value")
+						return
+					}
+					break
+				}
+			}
+
 		}
+
 		if len(values) == 0 {
+			if *getns != "" {
+				fmt.Printf("Key not found in namespace '%s'\n", *getns)
+				return
+			}
 			fmt.Println("Key not found.")
 		} else {
 			fmt.Printf("  %s%s%s %s[%d]%s\n", Underline, key, Reset, DarkGrey, len(values), Reset)

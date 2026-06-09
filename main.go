@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/vector-ops/mapil/cmd"
 	"github.com/vector-ops/mapil/store"
 )
@@ -11,7 +13,10 @@ func main() {
 	dev := devMode == "true"
 
 	store := store.NewStore(dev)
-	store.Init()
+	if err := store.Init(); err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	cmd.Execute(store)
 }

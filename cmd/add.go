@@ -17,6 +17,12 @@ var addCmd = &cobra.Command{
 	},
 }
 
+var addns *string
+
+func init() {
+	addns = addCmd.PersistentFlags().StringP("namespace", "s", "", "add object to namespace")
+}
+
 func addObj(args []string) {
 	var key string
 	var err error
@@ -66,9 +72,7 @@ func addObj(args []string) {
 
 	vals := helpers.CleanInput(value)
 
-	DataStore.AddList(key, vals)
-
-	err = DataStore.Persist()
+	err = dataStore.AddList(key, vals, *addns)
 	if err != nil {
 		fmt.Println(err)
 		return

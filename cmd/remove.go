@@ -36,7 +36,7 @@ func rmObj(args []string) {
 		}
 	}
 
-	keys := DataStore.GetKeys()
+	keys := dataStore.GetKeys()
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -63,7 +63,7 @@ func rmObj(args []string) {
 		}
 	}
 
-	values, err := DataStore.GetValue(key)
+	values, err := dataStore.GetValue(key)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -96,9 +96,7 @@ func rmObj(args []string) {
 
 	values = append(values[:id], values[id+1:]...)
 
-	DataStore.UpdateList(key, values)
-
-	err = DataStore.Persist()
+	err = dataStore.UpdateList(key, values, "")
 	if err != nil {
 		fmt.Println(err)
 		return

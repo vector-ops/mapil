@@ -7,6 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var delAll *bool
+
+func init() {
+	delAll = delCmd.PersistentFlags().BoolP("all", "a", false, "delete all the data in the data store.")
+}
+
 var delCmd = &cobra.Command{
 	Use:   "del",
 	Short: "Delete an object",
@@ -25,12 +31,11 @@ func delObj(args []string) {
 	}
 
 	if *delAll {
-		DataStore.DeleteAll()
-		DataStore.Persist()
+		dataStore.DeleteAll()
 		fmt.Printf("Deleted all data.\n")
 		return
 	}
-	keys := DataStore.GetKeys()
+	keys := dataStore.GetKeys()
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -57,8 +62,7 @@ func delObj(args []string) {
 		}
 	}
 
-	DataStore.DeleteValue(key)
-	err = DataStore.Persist()
+	err = dataStore.DeleteValue(key)
 	if err != nil {
 		fmt.Println(err)
 		return
