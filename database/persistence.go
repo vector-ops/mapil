@@ -37,22 +37,23 @@ func (f *File) Init() error {
 	if f.filePath == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("failed to create data file\n%s", err)
+			return fmt.Errorf("failed to create data directory\n%s", err)
 		}
 
 		dirPath = path.Join(home, dir)
 
 	} else {
-		f.filePath = path.Join(dirPath, fileName)
 
 		dirPath, _ = strings.CutSuffix(f.filePath, "."+fileName)
 	}
 
 	if !helpers.PathExists(dirPath) {
 		if err := helpers.CreateDir(dirPath); err != nil {
-			return fmt.Errorf("failed to create data file\n%s", err)
+			return fmt.Errorf("failed to create data directory\n%s", err)
 		}
 	}
+
+	f.filePath = path.Join(dirPath, fileName)
 
 	if err := f.createFile(); err != nil {
 		return fmt.Errorf("failed to create data file\n%s", err)
@@ -162,7 +163,7 @@ func deserialize(file *os.File) ([]KeyValue, error) {
 		return nil, err
 	}
 	if len(data) == 0 {
-		return nil, fmt.Errorf("no data in file")
+		return nil, nil
 	}
 	return unwrap(data)
 }
