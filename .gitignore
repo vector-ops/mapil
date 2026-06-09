@@ -2,5 +2,6 @@
 /.mapil
 /bin
 mapil.json
+todo.md
 # Added by goreleaser init:
 dist/
