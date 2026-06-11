@@ -94,7 +94,11 @@ func rmObj(args []string) {
 		}
 	}
 
-	values = append(values[:id], values[id+1:]...)
+	if id == len(values)-1 {
+		values = values[:id]
+	} else {
+		values = append(values[:id], values[id+1:]...)
+	}
 
 	err = dataStore.UpdateList(key, values, "")
 	if err != nil {
