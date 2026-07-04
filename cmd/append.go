@@ -80,7 +80,7 @@ func apdObj(args []string) {
 
 	vals := helpers.CleanInput(value)
 
-	err = dataStore.AppendList(key, vals)
+	err = dataStore.AppendList(key, vals, true)
 	if err != nil {
 		fmt.Println(err)
 		return

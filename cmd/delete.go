@@ -62,7 +62,7 @@ func delObj(args []string) {
 		}
 	}
 
-	err = dataStore.DeleteValue(key)
+	err = dataStore.DeleteObject(key)
 	if err != nil {
 		fmt.Println(err)
 		return
