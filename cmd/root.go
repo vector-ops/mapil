@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -24,7 +25,7 @@ var (
 		},
 
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			err := dataStore.Close()
+			err := dataStore.Close(cmd.Context())
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -33,9 +34,9 @@ var (
 	}
 )
 
-func Execute(st *store.Store) {
+func Execute(ctx context.Context, st *store.Store) {
 	dataStore = st
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

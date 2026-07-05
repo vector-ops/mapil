@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/manifoldco/promptui"
@@ -13,11 +14,11 @@ var apdCmd = &cobra.Command{
 	Short: "Append to an object",
 	Long:  `Append one or more values to the list`,
 	Run: func(cmd *cobra.Command, args []string) {
-		apdObj(args)
+		apdObj(cmd.Context(), args)
 	},
 }
 
-func apdObj(args []string) {
+func apdObj(ctx context.Context, args []string) {
 
 	var key string
 	var err error
@@ -26,7 +27,7 @@ func apdObj(args []string) {
 		key = args[0]
 	}
 
-	keys := dataStore.GetKeys()
+	keys := dataStore.GetKeys(ctx)
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -80,7 +81,7 @@ func apdObj(args []string) {
 
 	vals := helpers.CleanInput(value)
 
-	err = dataStore.AppendList(key, vals, true)
+	err = dataStore.AppendList(ctx, key, vals, true)
 	if err != nil {
 		fmt.Println(err)
 		return

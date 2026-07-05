@@ -2,6 +2,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -61,14 +62,14 @@ func (r *reservedOp) IfUnlocked(fn func() error) error {
 }
 
 type Store struct {
-	data *database.Database
+	data database.Database
 
 	reservedOp *reservedOp
 }
 
-func NewStore(devMode bool) *Store {
+func NewStore(dev bool) *Store {
 	fp := ""
-	if devMode {
+	if dev {
 		curDir, err := os.Getwd()
 		if err != nil {
 			curDir = "."
@@ -78,7 +79,7 @@ func NewStore(devMode bool) *Store {
 	}
 
 	return &Store{
-		data: database.NewDatabase(fp),
+		data: database.NewLocalFileDB(fp),
 		reservedOp: &reservedOp{
 			m:        sync.Mutex{},
 			reserved: atomic.Bool{},
@@ -86,15 +87,15 @@ func NewStore(devMode bool) *Store {
 	}
 }
 
-func (s *Store) Init() error {
-	return s.data.Init()
+func (s *Store) Init(ctx context.Context) error {
+	return s.data.Init(ctx)
 }
 
-func (s *Store) Close() error {
-	return s.data.Close()
+func (s *Store) Close(ctx context.Context) error {
+	return s.data.Close(ctx)
 }
 
-func (s *Store) AddList(key string, value []string, namespace string) error {
+func (s *Store) AddList(ctx context.Context, key string, value []string, namespace string) error {
 	if (namespace == namespacesNS || namespace == namespacesKey) && !s.reservedOp.IsLocked() {
 		return ErrReservedNamespaceMutation
 	}
@@ -107,14 +108,11 @@ func (s *Store) AddList(key string, value []string, namespace string) error {
 		namespace = defaultNamespace
 	}
 
-	// if !s.reservedOp.IsLocked() {
-	// s.reservedOp.Lock()
-
 	s.reservedOp.IfUnlocked(
 		func() error {
-			if err := s.AppendList(namespacesKey, []string{namespace}, false); err != nil {
+			if err := s.AppendList(ctx, namespacesKey, []string{namespace}, false); err != nil {
 				if errors.Is(err, database.ErrKeyDoesNotExist) {
-					if addErr := s.AddList(namespacesKey, []string{namespace}, namespacesNS); addErr != nil {
+					if addErr := s.AddList(ctx, namespacesKey, []string{namespace}, namespacesNS); addErr != nil {
 						return fmt.Errorf("database error")
 					}
 				} else if !errors.Is(err, ErrDuplicateValue) {
@@ -124,13 +122,11 @@ func (s *Store) AddList(key string, value []string, namespace string) error {
 
 			return nil
 		})
-	// s.reservedOp.Unlock()
-	// }
 
-	return s.data.AddObject(database.ListType{Key: key, Value: value, Namespace: namespace})
+	return s.data.AddObject(ctx, database.ListType{Key: key, Value: value, Namespace: namespace})
 }
 
-func (s *Store) UpdateList(key string, value []string, namespace string) error {
+func (s *Store) UpdateList(ctx context.Context, key string, value []string, namespace string) error {
 	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
 		return ErrReservedNamespaceMutation
 	}
@@ -139,16 +135,16 @@ func (s *Store) UpdateList(key string, value []string, namespace string) error {
 		namespace = defaultNamespace
 	}
 
-	return s.data.UpdateObject(database.ListType{Key: key, Value: value, Namespace: namespace})
+	return s.data.UpdateObject(ctx, database.ListType{Key: key, Value: value, Namespace: namespace})
 }
 
-func (s *Store) AppendList(key string, values []string, allowDuplicates bool) error {
+func (s *Store) AppendList(ctx context.Context, key string, values []string, allowDuplicates bool) error {
 
 	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
 		return ErrReservedKeyMutation
 	}
 
-	existingValues, err := s.GetValue(key)
+	existingValues, err := s.GetValue(ctx, key)
 	if err != nil {
 		return err
 	}
@@ -163,29 +159,29 @@ func (s *Store) AppendList(key string, values []string, allowDuplicates bool) er
 		}
 	}
 
-	ns, err := s.GetNamespace(key)
+	ns, err := s.GetNamespace(ctx, key)
 	if err != nil {
 		return err
 	}
 
 	existingValues = append(existingValues, values...)
-	return s.UpdateList(key, existingValues, ns)
+	return s.UpdateList(ctx, key, existingValues, ns)
 }
 
-func (s *Store) DeleteObject(key string) error {
+func (s *Store) DeleteObject(ctx context.Context, key string) error {
 	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
 		return ErrReservedKeyMutation
 	}
 
-	ns, err := s.GetNamespace(key)
+	ns, err := s.GetNamespace(ctx, key)
 	if err != nil {
 		return err
 	}
 
 	s.reservedOp.ReservedFunc(func() error {
-		objects := s.GetNamespaceObjects(ns)
+		objects := s.GetNamespaceObjects(ctx, ns)
 		if len(objects) == 1 {
-			values, err := s.GetValue(namespacesKey)
+			values, err := s.GetValue(ctx, namespacesKey)
 			if err != nil {
 				return err
 			}
@@ -194,30 +190,30 @@ func (s *Store) DeleteObject(key string) error {
 				return v == ns
 			})
 
-			return s.UpdateList(namespacesKey, values, namespacesNS)
+			return s.UpdateList(ctx, namespacesKey, values, namespacesNS)
 		}
 
 		return nil
 	})
 
-	s.data.DeleteObject(key)
+	s.data.DeleteObject(ctx, key)
 	return nil
 }
 
-func (s *Store) DeleteAll() {
-	keys := s.GetKeys()
+func (s *Store) DeleteAll(ctx context.Context) {
+	keys := s.GetKeys(ctx)
 
 	for _, k := range keys {
-		s.data.DeleteObject(k)
+		s.data.DeleteObject(ctx, k)
 	}
 
 	s.reservedOp.ReservedFunc(func() error {
-		return s.UpdateList(namespacesKey, []string{defaultNamespace}, namespacesNS)
+		return s.UpdateList(ctx, namespacesKey, []string{defaultNamespace}, namespacesNS)
 	})
 }
 
-func (s *Store) GetValue(key string) ([]string, error) {
-	keyval, err := s.data.GetObject(key)
+func (s *Store) GetValue(ctx context.Context, key string) ([]string, error) {
+	keyval, err := s.data.GetObject(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -230,15 +226,15 @@ func (s *Store) GetValue(key string) ([]string, error) {
 	}
 }
 
-func (s *Store) GetKeys() []string {
-	keys := s.data.GetAllKeys()
+func (s *Store) GetKeys(ctx context.Context) []string {
+	keys := s.data.GetAllKeys(ctx)
 	return slices.DeleteFunc(keys, func(k string) bool {
 		return k == namespacesKey && !s.reservedOp.IsLocked()
 	})
 }
 
-func (s *Store) GetNamespace(key string) (string, error) {
-	ns, err := s.data.GetNamespace(key)
+func (s *Store) GetNamespace(ctx context.Context, key string) (string, error) {
+	ns, err := s.data.GetNamespace(ctx, key)
 	if err != nil {
 		return "", err
 	}
@@ -246,8 +242,8 @@ func (s *Store) GetNamespace(key string) (string, error) {
 	return ns, nil
 }
 
-func (s *Store) GetNamespaceObjects(ns string) []database.ListType {
-	data := s.data.GetNamespaceObjects(ns)
+func (s *Store) GetNamespaceObjects(ctx context.Context, ns string) []database.ListType {
+	data := s.data.GetNamespaceObjects(ctx, ns)
 	var do []database.ListType
 	for _, kv := range data {
 		switch kv.(type) {
@@ -265,8 +261,8 @@ func (s *Store) GetNamespaceObjects(ns string) []database.ListType {
 	return do
 }
 
-func (s *Store) GetAllData() []database.ListType {
-	data := s.data.GetAllObjects()
+func (s *Store) GetAllData(ctx context.Context) []database.ListType {
+	data := s.data.GetAllObjects(ctx)
 	var do []database.ListType
 	for _, kv := range data {
 		switch kv.(type) {

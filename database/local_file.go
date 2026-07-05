@@ -2,6 +2,7 @@
 package database
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
@@ -11,35 +12,35 @@ var (
 	ErrConflictingKeys = errors.New("key already exists")
 )
 
-type Database struct {
+type LocalFile struct {
 	List map[string]KeyValue `json:"list,omitempty"`
 	file *File
 }
 
-func NewDatabase(fp string) *Database {
+func NewLocalFileDB(fp string) Database {
 
 	file := NewFileObjectWithFile(fp)
 
-	return &Database{
+	return &LocalFile{
 		List: make(map[string]KeyValue),
 		file: file,
 	}
 
 }
 
-func (d *Database) Init() error {
+func (d *LocalFile) Init(ctx context.Context) error {
 	if err := d.file.Init(); err != nil {
 		return err
 	}
 
-	return d.LoadData()
+	return d.loadData(ctx)
 }
 
-func (d *Database) Close() error {
-	return d.persist()
+func (d *LocalFile) Close(ctx context.Context) error {
+	return d.persist(ctx)
 }
 
-func (d *Database) AddObject(kv KeyValue) error {
+func (d *LocalFile) AddObject(_ context.Context, kv KeyValue) error {
 	if _, ok := d.List[kv.GetKey()]; ok {
 		return ErrConflictingKeys
 	}
@@ -48,7 +49,7 @@ func (d *Database) AddObject(kv KeyValue) error {
 	return nil
 }
 
-func (d *Database) UpdateObject(kv KeyValue) error {
+func (d *LocalFile) UpdateObject(_ context.Context, kv KeyValue) error {
 	if _, ok := d.List[kv.GetKey()]; ok {
 		d.List[kv.GetKey()] = kv
 		return nil
@@ -56,21 +57,21 @@ func (d *Database) UpdateObject(kv KeyValue) error {
 	return ErrKeyDoesNotExist
 }
 
-func (d *Database) GetObject(key string) (KeyValue, error) {
+func (d *LocalFile) GetObject(_ context.Context, key string) (KeyValue, error) {
 	if kv, ok := d.List[key]; ok {
 		return kv, nil
 	}
 	return nil, ErrKeyDoesNotExist
 }
 
-func (d *Database) GetValue(key string) (interface{}, error) {
+func (d *LocalFile) GetValue(_ context.Context, key string) (any, error) {
 	if kv, ok := d.List[key]; ok {
 		return kv.GetValue(), nil
 	}
 	return nil, ErrKeyDoesNotExist
 }
 
-func (d *Database) GetNamespace(key string) (string, error) {
+func (d *LocalFile) GetNamespace(_ context.Context, key string) (string, error) {
 
 	if kv, ok := d.List[key]; ok {
 		return kv.GetNamespace(), nil
@@ -79,7 +80,7 @@ func (d *Database) GetNamespace(key string) (string, error) {
 	return "", ErrKeyDoesNotExist
 }
 
-func (d *Database) GetAllObjects() []KeyValue {
+func (d *LocalFile) GetAllObjects(_ context.Context) []KeyValue {
 	var objs []KeyValue
 	for _, kv := range d.List {
 		objs = append(objs, kv)
@@ -87,7 +88,7 @@ func (d *Database) GetAllObjects() []KeyValue {
 	return objs
 }
 
-func (d *Database) GetAllKeys() []string {
+func (d *LocalFile) GetAllKeys(_ context.Context) []string {
 	keys := make([]string, 0, len(d.List))
 	for k := range d.List {
 		keys = append(keys, k)
@@ -95,7 +96,7 @@ func (d *Database) GetAllKeys() []string {
 	return keys
 }
 
-func (d *Database) GetNamespaceObjects(ns string) []KeyValue {
+func (d *LocalFile) GetNamespaceObjects(_ context.Context, ns string) []KeyValue {
 	var objs []KeyValue
 	for _, kv := range d.List {
 		if kv.GetNamespace() == ns {
@@ -106,11 +107,11 @@ func (d *Database) GetNamespaceObjects(ns string) []KeyValue {
 	return objs
 }
 
-func (d *Database) DeleteObject(key string) {
+func (d *LocalFile) DeleteObject(_ context.Context, key string) {
 	delete(d.List, key)
 }
 
-func (d *Database) LoadData() error {
+func (d *LocalFile) loadData(ctx context.Context) error {
 
 	data, err := d.file.LoadFile()
 	if err != nil {
@@ -118,14 +119,14 @@ func (d *Database) LoadData() error {
 	}
 
 	for _, v := range data {
-		d.AddObject(v)
+		d.AddObject(ctx, v)
 	}
 
 	return nil
 }
 
-func (d *Database) persist() error {
-	err := d.file.SaveFile(d.GetAllObjects())
+func (d *LocalFile) persist(ctx context.Context) error {
+	err := d.file.SaveFile(d.GetAllObjects(ctx))
 	if err != nil {
 		return fmt.Errorf("failed to save file: %v", err)
 	}

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strconv"
@@ -14,11 +15,11 @@ var rmCmd = &cobra.Command{
 	Short: "Remove an object",
 	Long:  `Remove an object from the list`,
 	Run: func(cmd *cobra.Command, args []string) {
-		rmObj(args)
+		rmObj(cmd.Context(), args)
 	},
 }
 
-func rmObj(args []string) {
+func rmObj(ctx context.Context, args []string) {
 	var key string
 	var id int
 	var err error
@@ -36,7 +37,7 @@ func rmObj(args []string) {
 		}
 	}
 
-	keys := dataStore.GetKeys()
+	keys := dataStore.GetKeys(ctx)
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -63,7 +64,7 @@ func rmObj(args []string) {
 		}
 	}
 
-	values, err := dataStore.GetValue(key)
+	values, err := dataStore.GetValue(ctx, key)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -100,7 +101,7 @@ func rmObj(args []string) {
 		values = append(values[:id], values[id+1:]...)
 	}
 
-	err = dataStore.UpdateList(key, values, "")
+	err = dataStore.UpdateList(ctx, key, values, "")
 	if err != nil {
 		fmt.Println(err)
 		return

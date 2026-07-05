@@ -29,9 +29,9 @@ var listCmd = &cobra.Command{
 		data := []database.ListType{}
 
 		if *lsns != "" {
-			data = dataStore.GetNamespaceObjects(*lsns)
+			data = dataStore.GetNamespaceObjects(cmd.Context(), *lsns)
 		} else {
-			data = dataStore.GetAllData()
+			data = dataStore.GetAllData(cmd.Context())
 		}
 
 		if len(data) == 0 {

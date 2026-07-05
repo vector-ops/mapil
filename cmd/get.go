@@ -17,6 +17,9 @@ var getCmd = &cobra.Command{
 	Short: "Get a key",
 	Long:  `Use key to get the value`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		ctx := cmd.Context()
+
 		key := ""
 		if len(args) > 0 {
 			key = args[0]
@@ -30,13 +33,13 @@ var getCmd = &cobra.Command{
 
 		if *getns == "" {
 
-			values, err = dataStore.GetValue(key)
+			values, err = dataStore.GetValue(ctx, key)
 			if err != nil {
 				fmt.Println(err.Error())
 				return
 			}
 		} else {
-			objs := dataStore.GetNamespaceObjects(*getns)
+			objs := dataStore.GetNamespaceObjects(ctx, *getns)
 			var ok bool
 			for _, obj := range objs {
 				if obj.GetKey() == key {

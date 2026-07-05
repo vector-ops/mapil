@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/manifoldco/promptui"
@@ -13,11 +14,11 @@ var updCmd = &cobra.Command{
 	Short: "Update an object",
 	Long:  `Update all the values in the key`,
 	Run: func(cmd *cobra.Command, args []string) {
-		updObj(args)
+		updObj(cmd.Context(), args)
 	},
 }
 
-func updObj(args []string) {
+func updObj(ctx context.Context, args []string) {
 	var key string
 	var err error
 
@@ -25,7 +26,7 @@ func updObj(args []string) {
 		key = args[0]
 	}
 
-	keys := dataStore.GetKeys()
+	keys := dataStore.GetKeys(ctx)
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -80,7 +81,7 @@ func updObj(args []string) {
 
 	vals := helpers.CleanInput(value)
 
-	err = dataStore.UpdateList(key, vals, "")
+	err = dataStore.UpdateList(ctx, key, vals, "")
 	if err != nil {
 		fmt.Println(err)
 		return

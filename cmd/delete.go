@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/manifoldco/promptui"
@@ -18,11 +19,11 @@ var delCmd = &cobra.Command{
 	Short: "Delete an object",
 	Long:  `Delete an object from the list`,
 	Run: func(cmd *cobra.Command, args []string) {
-		delObj(args)
+		delObj(cmd.Context(), args)
 	},
 }
 
-func delObj(args []string) {
+func delObj(ctx context.Context, args []string) {
 	var key string
 	var err error
 
@@ -31,11 +32,11 @@ func delObj(args []string) {
 	}
 
 	if *delAll {
-		dataStore.DeleteAll()
+		dataStore.DeleteAll(ctx)
 		fmt.Printf("Deleted all data.\n")
 		return
 	}
-	keys := dataStore.GetKeys()
+	keys := dataStore.GetKeys(ctx)
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -62,7 +63,7 @@ func delObj(args []string) {
 		}
 	}
 
-	err = dataStore.DeleteObject(key)
+	err = dataStore.DeleteObject(ctx, key)
 	if err != nil {
 		fmt.Println(err)
 		return

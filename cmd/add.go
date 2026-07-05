@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/manifoldco/promptui"
@@ -13,7 +14,7 @@ var addCmd = &cobra.Command{
 	Short: "List all objects",
 	Long:  `All objects stored are listed`,
 	Run: func(cmd *cobra.Command, args []string) {
-		addObj(args)
+		addObj(cmd.Context(), args)
 	},
 }
 
@@ -23,7 +24,7 @@ func init() {
 	addns = addCmd.PersistentFlags().StringP("namespace", "s", "", "add object to namespace")
 }
 
-func addObj(args []string) {
+func addObj(ctx context.Context, args []string) {
 	var key string
 	var err error
 
@@ -72,7 +73,7 @@ func addObj(args []string) {
 
 	vals := helpers.CleanInput(value)
 
-	err = dataStore.AddList(key, vals, *addns)
+	err = dataStore.AddList(ctx, key, vals, *addns)
 	if err != nil {
 		fmt.Println(err)
 		return

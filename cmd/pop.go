@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/manifoldco/promptui"
@@ -12,11 +13,11 @@ var popCmd = &cobra.Command{
 	Short: "Pop last object",
 	Long:  `Delete last object in the values`,
 	Run: func(cmd *cobra.Command, args []string) {
-		popObj(args)
+		popObj(cmd.Context(), args)
 	},
 }
 
-func popObj(args []string) {
+func popObj(ctx context.Context, args []string) {
 
 	var key string
 	var err error
@@ -25,7 +26,7 @@ func popObj(args []string) {
 		key = args[0]
 	}
 
-	keys := dataStore.GetKeys()
+	keys := dataStore.GetKeys(ctx)
 	if len(keys) == 0 {
 		fmt.Println("Data store empty.")
 		return
@@ -52,7 +53,7 @@ func popObj(args []string) {
 		}
 	}
 
-	values, err := dataStore.GetValue(key)
+	values, err := dataStore.GetValue(ctx, key)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -65,7 +66,7 @@ func popObj(args []string) {
 
 	values = values[:len(values)-1]
 
-	err = dataStore.UpdateList(key, values, "")
+	err = dataStore.UpdateList(ctx, key, values, "")
 	if err != nil {
 		fmt.Println(err)
 		return
