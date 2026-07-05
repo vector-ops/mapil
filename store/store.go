@@ -7,21 +7,63 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
+	"sync/atomic"
 
 	"github.com/vector-ops/mapil/database"
 )
 
 const defaultNamespace = "default"
 const namespacesKey = "namespaces"
+const namespacesNS = "namespace"
 
 var ErrUnsupportedValue = errors.New("unsupported value")
 var ErrReservedKeyMutation = errors.New("mutating reserved key is not allowed")
 var ErrReservedNamespaceMutation = errors.New("mutating reserved namespace is not allowed")
 var ErrDuplicateValue = errors.New("object has duplicate value(s)")
 
+type reservedOp struct {
+	m        sync.Mutex
+	reserved atomic.Bool
+}
+
+func (r *reservedOp) Lock() {
+	r.m.Lock()
+	r.reserved.Store(true)
+}
+
+func (r *reservedOp) Unlock() {
+	r.reserved.Store(false)
+	r.m.Unlock()
+}
+
+func (r *reservedOp) IsLocked() bool {
+	return r.reserved.Load()
+}
+
+func (r *reservedOp) ReservedFunc(fn func() error) error {
+	r.Lock()
+	defer r.Unlock()
+	return fn()
+}
+
+func (r *reservedOp) IfUnlocked(fn func() error) error {
+	if !r.m.TryLock() {
+		return nil
+	}
+
+	defer func() {
+		r.reserved.Store(false)
+		r.m.Unlock()
+	}()
+
+	return r.ReservedFunc(fn)
+}
+
 type Store struct {
-	data               *database.Database
-	allowReservedKeyOp bool
+	data *database.Database
+
+	reservedOp *reservedOp
 }
 
 func NewStore(devMode bool) *Store {
@@ -37,6 +79,10 @@ func NewStore(devMode bool) *Store {
 
 	return &Store{
 		data: database.NewDatabase(fp),
+		reservedOp: &reservedOp{
+			m:        sync.Mutex{},
+			reserved: atomic.Bool{},
+		},
 	}
 }
 
@@ -49,11 +95,11 @@ func (s *Store) Close() error {
 }
 
 func (s *Store) AddList(key string, value []string, namespace string) error {
-	if namespace == namespacesKey && !s.allowReservedKeyOp {
+	if (namespace == namespacesNS || namespace == namespacesKey) && !s.reservedOp.IsLocked() {
 		return ErrReservedNamespaceMutation
 	}
 
-	if key == namespacesKey && !s.allowReservedKeyOp {
+	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
 		return ErrReservedKeyMutation
 	}
 
@@ -61,26 +107,31 @@ func (s *Store) AddList(key string, value []string, namespace string) error {
 		namespace = defaultNamespace
 	}
 
-	// kind of a mutex? allowing only one operation on reserved keys at a time
-	if !s.allowReservedKeyOp {
-		s.allowReservedKeyOp = true
-		if err := s.AppendList(namespacesKey, []string{namespace}, false); err != nil {
-			if errors.Is(err, database.ErrKeyDoesNotExist) {
-				if addErr := s.AddList(namespacesKey, []string{namespace}, ""); addErr != nil {
-					return fmt.Errorf("database error")
+	// if !s.reservedOp.IsLocked() {
+	// s.reservedOp.Lock()
+
+	s.reservedOp.IfUnlocked(
+		func() error {
+			if err := s.AppendList(namespacesKey, []string{namespace}, false); err != nil {
+				if errors.Is(err, database.ErrKeyDoesNotExist) {
+					if addErr := s.AddList(namespacesKey, []string{namespace}, namespacesNS); addErr != nil {
+						return fmt.Errorf("database error")
+					}
+				} else if !errors.Is(err, ErrDuplicateValue) {
+					return err
 				}
-			} else if !errors.Is(err, ErrDuplicateValue) {
-				return err
 			}
-		}
-		s.allowReservedKeyOp = false
-	}
+
+			return nil
+		})
+	// s.reservedOp.Unlock()
+	// }
 
 	return s.data.AddObject(database.ListType{Key: key, Value: value, Namespace: namespace})
 }
 
 func (s *Store) UpdateList(key string, value []string, namespace string) error {
-	if key == namespacesKey && !s.allowReservedKeyOp {
+	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
 		return ErrReservedNamespaceMutation
 	}
 
@@ -93,7 +144,7 @@ func (s *Store) UpdateList(key string, value []string, namespace string) error {
 
 func (s *Store) AppendList(key string, values []string, allowDuplicates bool) error {
 
-	if key == namespacesKey && !s.allowReservedKeyOp {
+	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
 		return ErrReservedKeyMutation
 	}
 
@@ -122,18 +173,47 @@ func (s *Store) AppendList(key string, values []string, allowDuplicates bool) er
 }
 
 func (s *Store) DeleteObject(key string) error {
-	if key == namespacesKey && !s.allowReservedKeyOp {
+	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
 		return ErrReservedKeyMutation
 	}
+
+	ns, err := s.GetNamespace(key)
+	if err != nil {
+		return err
+	}
+
+	s.reservedOp.ReservedFunc(func() error {
+		objects := s.GetNamespaceObjects(ns)
+		if len(objects) == 1 {
+			values, err := s.GetValue(namespacesKey)
+			if err != nil {
+				return err
+			}
+
+			values = slices.DeleteFunc(values, func(v string) bool {
+				return v == ns
+			})
+
+			return s.UpdateList(namespacesKey, values, namespacesNS)
+		}
+
+		return nil
+	})
+
 	s.data.DeleteObject(key)
 	return nil
 }
 
 func (s *Store) DeleteAll() {
 	keys := s.GetKeys()
+
 	for _, k := range keys {
 		s.data.DeleteObject(k)
 	}
+
+	s.reservedOp.ReservedFunc(func() error {
+		return s.UpdateList(namespacesKey, []string{defaultNamespace}, namespacesNS)
+	})
 }
 
 func (s *Store) GetValue(key string) ([]string, error) {
@@ -153,7 +233,7 @@ func (s *Store) GetValue(key string) ([]string, error) {
 func (s *Store) GetKeys() []string {
 	keys := s.data.GetAllKeys()
 	return slices.DeleteFunc(keys, func(k string) bool {
-		return k == namespacesKey && !s.allowReservedKeyOp
+		return k == namespacesKey && !s.reservedOp.IsLocked()
 	})
 }
 
@@ -172,7 +252,7 @@ func (s *Store) GetNamespaceObjects(ns string) []database.ListType {
 	for _, kv := range data {
 		switch kv.(type) {
 		case database.ListType:
-			if kv.GetKey() == namespacesKey && !s.allowReservedKeyOp {
+			if (kv.GetKey() == namespacesKey || kv.GetKey() == namespacesNS) && !s.reservedOp.IsLocked() {
 				continue
 			}
 			do = append(do, database.ListType{
@@ -191,7 +271,7 @@ func (s *Store) GetAllData() []database.ListType {
 	for _, kv := range data {
 		switch kv.(type) {
 		case database.ListType:
-			if kv.GetKey() == namespacesKey && !s.allowReservedKeyOp {
+			if (kv.GetKey() == namespacesKey || kv.GetKey() == namespacesNS) && !s.reservedOp.IsLocked() {
 				continue
 			}
 			do = append(do, database.ListType{
