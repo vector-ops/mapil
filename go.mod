@@ -6,6 +6,7 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
+	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	modernc.org/sqlite v1.53.0
 )
 
