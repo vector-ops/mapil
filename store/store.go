@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/vector-ops/mapil/database"
+	"github.com/vector-ops/mapil/helpers"
 )
 
 const defaultNamespace = "default"
@@ -58,7 +59,7 @@ func (r *reservedOp) IfUnlocked(fn func() error) error {
 		r.m.Unlock()
 	}()
 
-	return r.ReservedFunc(fn)
+	return fn()
 }
 
 type Store struct {
@@ -67,19 +68,49 @@ type Store struct {
 	reservedOp *reservedOp
 }
 
-func NewStore(dev bool) *Store {
-	fp := ""
-	if dev {
-		curDir, err := os.Getwd()
-		if err != nil {
-			curDir = "."
-		}
+func NewStore(dev bool, cfg helpers.Config) *Store {
+	dbCfg := cfg.PrimaryDB().LoadDefault()
 
-		fp = filepath.Join(curDir, ".mapil", "mapil.json")
+	var db database.Database
+
+	switch dbCfg.Driver {
+	case "file":
+		fp := ""
+		if dev {
+			curDir, err := os.Getwd()
+			if err != nil {
+				curDir = "."
+			}
+
+			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
+		}
+		db = database.NewLocalFileDB(fp)
+	case "sqlite":
+		fp := ""
+		if dev {
+			curDir, err := os.Getwd()
+			if err != nil {
+				curDir = "."
+			}
+
+			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
+		}
+		db = database.NewSQLiteDB(fp)
+	default:
+		fp := ""
+		if dev {
+			curDir, err := os.Getwd()
+			if err != nil {
+				curDir = "."
+			}
+
+			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
+		}
+		db = database.NewLocalFileDB(fp)
 	}
 
 	return &Store{
-		data: database.NewLocalFileDB(fp),
+		data: db,
 		reservedOp: &reservedOp{
 			m:        sync.Mutex{},
 			reserved: atomic.Bool{},
