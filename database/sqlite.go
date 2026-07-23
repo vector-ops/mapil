@@ -22,7 +22,7 @@ func (s *SQLiteDB) withTx(ctx context.Context, fn func(tx *sql.Tx) error) error 
 		return err
 	}
 
-	if txErr := fn(tx); txErr != nil {
+	if err := fn(tx); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return rbErr
 		}
@@ -42,7 +42,7 @@ func NewSQLiteDB(p string) Database {
 // Init implements [Database].
 func (s *SQLiteDB) Init(ctx context.Context) error {
 
-	db, err := sql.Open("sqlite3", s.path)
+	db, err := sql.Open("sqlite", s.path)
 	if err != nil {
 		return err
 	}
@@ -62,9 +62,10 @@ func (s *SQLiteDB) Init(ctx context.Context) error {
 	);
 `
 
-	createStoreStmt := `
-	CREATE TABLE IF NOT EXISTS values (
-		key_id INTEGER PRIMARY KEY REFERENCES keys(id),
+	createValuesStmt := `
+	CREATE TABLE IF NOT EXISTS value_store (
+		id INTEGER PRIMARY KEY,
+		key_id INTEGER REFERENCES keys(id),
 		type TEXT NOT NULL,
 		value TEXT NOT NULL
 	);	
@@ -75,25 +76,16 @@ func (s *SQLiteDB) Init(ctx context.Context) error {
 	return s.withTx(ctx, func(tx *sql.Tx) error {
 		_, err = tx.ExecContext(ctx, createNamespacesStmt)
 		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				return rbErr
-			}
 			return err
 		}
 
 		_, err = tx.ExecContext(ctx, createKeysStmt)
 		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				return rbErr
-			}
 			return err
 		}
 
-		_, err = tx.ExecContext(ctx, createStoreStmt)
+		_, err = tx.ExecContext(ctx, createValuesStmt)
 		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				return rbErr
-			}
 			return err
 		}
 
@@ -110,7 +102,7 @@ func (s *SQLiteDB) AddObject(ctx context.Context, kv KeyValue) error {
 	`
 
 	addValues := `
-		INSERT INTO values (key_id, type, value)
+		INSERT INTO value_store (key_id, type, value)
 		VALUES ($1, $2, $3)
 	`
 
@@ -124,7 +116,7 @@ func (s *SQLiteDB) AddObject(ctx context.Context, kv KeyValue) error {
 		WHERE name = $1;
 	`
 
-	return s.withTx(ctx, func(tx *sql.Tx) error {
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, createNamespace, kv.GetNamespace())
 		if err != nil {
 			return err
@@ -176,7 +168,7 @@ func (s *SQLiteDB) AddObject(ctx context.Context, kv KeyValue) error {
 				return errors.New("invalid value")
 			}
 			for _, v := range values {
-				if _, err := stmt.ExecContext(ctx, keyID, v); err != nil {
+				if _, err := stmt.ExecContext(ctx, keyID, kv.GetType(), v); err != nil {
 					return err
 				}
 			}
@@ -188,6 +180,7 @@ func (s *SQLiteDB) AddObject(ctx context.Context, kv KeyValue) error {
 		return nil
 	})
 
+	return err
 }
 
 // Close implements [Database].
@@ -236,7 +229,7 @@ func (s *SQLiteDB) GetAllObjects(ctx context.Context) []KeyValue {
 
 	query := `
 		SELECT k.name, n.name, v.value, v.type FROM keys as k
-		JOIN values AS v ON k.id = v.key_id 
+		JOIN value_store AS v ON k.id = v.key_id 
 		JOIN namespaces as n ON k.namespace_id = n.id
 		ORDER BY k.id ASC, v.id ASC;
 	`
@@ -313,8 +306,8 @@ func (s *SQLiteDB) GetNamespace(ctx context.Context, key string) (string, error)
 func (s *SQLiteDB) GetNamespaceObjects(ctx context.Context, ns string) []KeyValue {
 	query := `
 		SELECT k.name, v.value, v.type FROM keys as k
-		JOIN values AS v ON k.id = v.key_id 
 		JOIN namespaces as n ON k.namespace_id = n.id
+		JOIN value_store AS v ON k.id = v.key_id 
 		WHERE n.name = $1
 		ORDER BY k.id ASC, v.id ASC;
 	`
@@ -333,7 +326,7 @@ func (s *SQLiteDB) GetNamespaceObjects(ctx context.Context, ns string) []KeyValu
 		var v string
 		var t string
 
-		if err := res.Scan(&k, &ns, &v, &t); err != nil {
+		if err := res.Scan(&k, &v, &t); err != nil {
 			continue
 		}
 
@@ -346,7 +339,6 @@ func (s *SQLiteDB) GetNamespaceObjects(ctx context.Context, ns string) []KeyValu
 				if !ok {
 					continue
 				}
-
 			}
 
 			vals = append(vals, v)
@@ -373,13 +365,13 @@ func (s *SQLiteDB) GetNamespaceObjects(ctx context.Context, ns string) []KeyValu
 func (s *SQLiteDB) GetObject(ctx context.Context, key string) (KeyValue, error) {
 	query := `
 		SELECT n.name, v.value, v.type FROM keys as k
-		JOIN values AS v ON k.id = v.key_id 
+		JOIN value_store AS v ON k.id = v.key_id 
 		JOIN namespaces as n ON k.namespace_id = n.id
 		WHERE k.name = $1
 		ORDER BY k.id ASC, v.id ASC;
 	`
 
-	res, err := s.db.QueryContext(ctx, query)
+	res, err := s.db.QueryContext(ctx, query, key)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +390,7 @@ func (s *SQLiteDB) GetObject(ctx context.Context, key string) (KeyValue, error) 
 		switch t {
 		case List:
 			vals := []string{v}
-			if kv.GetKey() != "" {
+			if kv != nil && kv.GetKey() != "" {
 				vals = kv.GetValue().([]string)
 			}
 
@@ -420,12 +412,12 @@ func (s *SQLiteDB) GetObject(ctx context.Context, key string) (KeyValue, error) 
 func (s *SQLiteDB) GetValue(ctx context.Context, key string) (any, error) {
 	query := `
 		SELECT v.value, v.type FROM keys as k
-		JOIN values AS v ON k.id = v.key_id 
+		JOIN value_store AS v ON k.id = v.key_id 
 		WHERE k.name = $1
 		ORDER BY v.id ASC;
 	`
 
-	res, err := s.db.QueryContext(ctx, query)
+	res, err := s.db.QueryContext(ctx, query, key)
 	if err != nil {
 		return nil, err
 	}
@@ -476,14 +468,15 @@ func (s *SQLiteDB) UpdateObject(ctx context.Context, kv KeyValue) error {
 		WHERE name = $1;
 	`
 
+	// FIXME: JOIN syntax error
 	delVals := `
-		DELETE FROM values AS v
+		DELETE FROM value_store AS v
 		JOIN keys AS k ON k.id = v.key_id
 		WHERE k.name = $1
 	`
 
 	addValues := `
-		INSERT INTO values (key_id, type, value)
+		INSERT INTO value_store (key_id, type, value)
 		VALUES ($1, $2, $3)
 	`
 
@@ -532,7 +525,7 @@ func (s *SQLiteDB) UpdateObject(ctx context.Context, kv KeyValue) error {
 				return errors.New("invalid value")
 			}
 			for _, v := range values {
-				if _, err := stmt.ExecContext(ctx, keyID, v); err != nil {
+				if _, err := stmt.ExecContext(ctx, keyID, List, v); err != nil {
 					return err
 				}
 			}
