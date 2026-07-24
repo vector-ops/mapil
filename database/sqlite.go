@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"log"
 
 	_ "modernc.org/sqlite"
 )
@@ -24,9 +26,8 @@ func (s *SQLiteDB) withTx(ctx context.Context, fn func(tx *sql.Tx) error) error 
 
 	if err := fn(tx); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
-			return rbErr
+			return errors.Join(err, rbErr)
 		}
-
 		return err
 	}
 
@@ -190,15 +191,33 @@ func (s *SQLiteDB) Close(ctx context.Context) error {
 
 // DeleteObject implements [Database].
 func (s *SQLiteDB) DeleteObject(ctx context.Context, key string) {
-	deleteQuery := `
+	deleteValues := `
+		DELETE FROM value_store as v
+		WHERE key_id IN (
+			SELECT id FROM keys
+			WHERE name = $1	
+		);
+		`
+	deleteKey := `
 		DELETE FROM keys
 		WHERE name = $1;
 	`
-	if _, err := s.db.ExecContext(ctx, deleteQuery, key); err != nil {
-		// TODO: return error
-		// return err
-		return
+
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, deleteValues, key); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, deleteKey, key); err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Println(err)
 	}
+
+	// TODO: return error
 }
 
 // GetAllKeys implements [Database].
@@ -375,6 +394,7 @@ func (s *SQLiteDB) GetObject(ctx context.Context, key string) (KeyValue, error) 
 	if err != nil {
 		return nil, err
 	}
+	defer res.Close()
 
 	var kv KeyValue
 	for res.Next() {
@@ -389,10 +409,12 @@ func (s *SQLiteDB) GetObject(ctx context.Context, key string) (KeyValue, error) 
 
 		switch t {
 		case List:
-			vals := []string{v}
+			vals := []string{}
 			if kv != nil && kv.GetKey() != "" {
 				vals = kv.GetValue().([]string)
 			}
+
+			vals = append(vals, v)
 
 			kv = ListType{
 				Key:       key,
@@ -403,6 +425,10 @@ func (s *SQLiteDB) GetObject(ctx context.Context, key string) (KeyValue, error) 
 			return nil, ErrInvalidValueType
 		}
 
+	}
+
+	if kv == nil || kv.GetKey() == "" {
+		return nil, ErrKeyDoesNotExist
 	}
 
 	return kv, nil
@@ -464,20 +490,27 @@ func (s *SQLiteDB) UpdateObject(ctx context.Context, kv KeyValue) error {
 	`
 
 	getKey := `
-		SELECT id FROM keys
+		SELECT id, namespace_id FROM keys
 		WHERE name = $1;
 	`
 
-	// FIXME: JOIN syntax error
 	delVals := `
-		DELETE FROM value_store AS v
-		JOIN keys AS k ON k.id = v.key_id
-		WHERE k.name = $1
+		DELETE FROM value_store 
+		WHERE key_id IN (
+			SELECT id FROM keys
+			WHERE name = $1
+		);
 	`
 
 	addValues := `
 		INSERT INTO value_store (key_id, type, value)
 		VALUES ($1, $2, $3)
+	`
+
+	updateNamespace := `
+		UPDATE keys
+		SET namespace_id = $1
+		WHERE id = $2;
 	`
 
 	return s.withTx(ctx, func(tx *sql.Tx) error {
@@ -490,7 +523,6 @@ func (s *SQLiteDB) UpdateObject(ctx context.Context, kv KeyValue) error {
 
 		if err := row.Scan(&namespaceID); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-
 				res, err := tx.ExecContext(ctx, createNamespace, kv.GetNamespace())
 				if err != nil {
 					return err
@@ -502,14 +534,22 @@ func (s *SQLiteDB) UpdateObject(ctx context.Context, kv KeyValue) error {
 				}
 
 				namespaceID = int(id)
+			} else {
+				return err
 			}
-			return err
 		}
 
 		var keyID int
+		var existingNamespaceID int
 		row = tx.QueryRowContext(ctx, getKey, kv.GetKey())
-		if err := row.Scan(&keyID); err != nil {
-			return err
+		if err := row.Scan(&keyID, &existingNamespaceID); err != nil {
+			return fmt.Errorf("get key: %w", err)
+		}
+
+		if existingNamespaceID != namespaceID {
+			if _, err := tx.ExecContext(ctx, updateNamespace, namespaceID, keyID); err != nil {
+				return err
+			}
 		}
 
 		stmt, err := tx.PrepareContext(ctx, addValues)
