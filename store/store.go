@@ -8,11 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sync"
-	"sync/atomic"
 
 	"github.com/vector-ops/mapil/database"
 	"github.com/vector-ops/mapil/helpers"
+	"github.com/vector-ops/mapil/pkg/mutex"
 )
 
 const defaultNamespace = "default"
@@ -24,48 +23,10 @@ var ErrReservedKeyMutation = errors.New("mutating reserved key is not allowed")
 var ErrReservedNamespaceMutation = errors.New("mutating reserved namespace is not allowed")
 var ErrDuplicateValue = errors.New("object has duplicate value(s)")
 
-type reservedOp struct {
-	m        sync.Mutex
-	reserved atomic.Bool
-}
-
-func (r *reservedOp) Lock() {
-	r.m.Lock()
-	r.reserved.Store(true)
-}
-
-func (r *reservedOp) Unlock() {
-	r.reserved.Store(false)
-	r.m.Unlock()
-}
-
-func (r *reservedOp) IsLocked() bool {
-	return r.reserved.Load()
-}
-
-func (r *reservedOp) ReservedFunc(fn func() error) error {
-	r.Lock()
-	defer r.Unlock()
-	return fn()
-}
-
-func (r *reservedOp) IfUnlocked(fn func() error) error {
-	if !r.m.TryLock() {
-		return nil
-	}
-
-	defer func() {
-		r.reserved.Store(false)
-		r.m.Unlock()
-	}()
-
-	return fn()
-}
-
 type Store struct {
 	data database.Database
 
-	reservedOp *reservedOp
+	reservedOp *mutex.ObservableMutex
 }
 
 func NewStore(dev bool, cfg helpers.Config) *Store {
@@ -83,6 +44,8 @@ func NewStore(dev bool, cfg helpers.Config) *Store {
 			}
 
 			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
+		} else {
+			fp = filepath.Join(cfg.DataDir, dbCfg.Filename)
 		}
 		db = database.NewLocalFileDB(fp)
 	case "sqlite":
@@ -94,6 +57,8 @@ func NewStore(dev bool, cfg helpers.Config) *Store {
 			}
 
 			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
+		} else {
+			fp = filepath.Join(cfg.DataDir, dbCfg.Filename)
 		}
 		db = database.NewSQLiteDB(fp)
 	default:
@@ -105,16 +70,15 @@ func NewStore(dev bool, cfg helpers.Config) *Store {
 			}
 
 			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
+		} else {
+			fp = filepath.Join(cfg.DataDir, dbCfg.Filename)
 		}
 		db = database.NewLocalFileDB(fp)
 	}
 
 	return &Store{
-		data: db,
-		reservedOp: &reservedOp{
-			m:        sync.Mutex{},
-			reserved: atomic.Bool{},
-		},
+		data:       db,
+		reservedOp: mutex.NewObservableMutex(),
 	}
 }
 
@@ -209,12 +173,15 @@ func (s *Store) DeleteObject(ctx context.Context, key string) error {
 		return err
 	}
 
-	s.reservedOp.ReservedFunc(func() error {
+	err = s.reservedOp.ReservedFunc(func() error {
 		objects := s.GetNamespaceObjects(ctx, ns)
 		if len(objects) == 1 {
 			values, err := s.GetValue(ctx, namespacesKey)
 			if err != nil {
-				return err
+				if errors.Is(err, database.ErrKeyDoesNotExist) {
+					return nil
+				}
+				return fmt.Errorf("reserverd key '%s': %w", namespacesKey, err)
 			}
 
 			values = slices.DeleteFunc(values, func(v string) bool {
@@ -227,12 +194,18 @@ func (s *Store) DeleteObject(ctx context.Context, key string) error {
 		return nil
 	})
 
+	if err != nil {
+		return err
+	}
+
 	s.data.DeleteObject(ctx, key)
 	return nil
 }
 
-func (s *Store) DeleteAll(ctx context.Context) {
+func (s *Store) DeleteAll(ctx context.Context) error {
 	keys := s.GetKeys(ctx)
+
+	// TODO: return err
 
 	for _, k := range keys {
 		s.data.DeleteObject(ctx, k)
@@ -241,6 +214,8 @@ func (s *Store) DeleteAll(ctx context.Context) {
 	s.reservedOp.ReservedFunc(func() error {
 		return s.UpdateList(ctx, namespacesKey, []string{defaultNamespace}, namespacesNS)
 	})
+
+	return nil
 }
 
 func (s *Store) GetValue(ctx context.Context, key string) ([]string, error) {
