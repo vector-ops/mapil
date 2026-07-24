@@ -1,0 +1,17 @@
+data_dir: "~/.mapil"
+databases:
+  file:
+    filename: "store.json"
+    remote: false
+    primary: false
+    driver: "file"
+  sqlite:
+    filename: "store.db"
+    remote: false
+    primary: true
+    driver: "sqlite"
+  # redis:
+  #   url: "redis://localhost:6379"
+  #   remote: false
+  #   primary: false
+  #   driver: "redis"
