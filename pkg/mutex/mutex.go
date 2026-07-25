@@ -27,6 +27,7 @@ func (r *ObservableMutex) Unlock() {
 	r.m.Unlock()
 }
 
+// IsLocked returns whether the mutex is locked
 func (r *ObservableMutex) IsLocked() bool {
 	return r.reserved.Load()
 }

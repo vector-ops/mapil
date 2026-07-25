@@ -26,6 +26,14 @@ var ErrDuplicateValue = errors.New("object has duplicate value(s)")
 type Store struct {
 	data database.Database
 
+	// reservedOp is a mutex that is used to perform mutation on the reserved key or namespace.
+	// It does not allow reserved operations if the reservedOp mutex is unlocked, thus blocking
+	// external reserved key mutation. Internal calls are made within the store whose
+	// results are not shared with the external caller.
+	// While mutex does exist it is not thread safe, this could block reads or writes until
+	// either operation is completed.
+	//
+	// I wanted to try and implement left right concurrecny control so might add it later
 	reservedOp *mutex.ObservableMutex
 }
 
@@ -122,8 +130,12 @@ func (s *Store) AddList(ctx context.Context, key string, value []string, namespa
 }
 
 func (s *Store) UpdateList(ctx context.Context, key string, value []string, namespace string) error {
-	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
+	if (namespace == namespacesNS || namespace == namespacesKey) && !s.reservedOp.IsLocked() {
 		return ErrReservedNamespaceMutation
+	}
+
+	if (key == namespacesKey || key == namespacesNS) && !s.reservedOp.IsLocked() {
+		return ErrReservedKeyMutation
 	}
 
 	if namespace == "" {
