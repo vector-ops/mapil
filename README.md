@@ -28,15 +28,3 @@ Use the help command
 ```bash
 mapil -h
 ```
-
-## TODO
-
--   [ ] Terminal UI
--   [ ] Namespaces
--   [ ] Data synchronization with multiple devices
--   [ ] Optional data encryption
--   [ ] Import and store bookmarks and passwords
--   [x] New datatype: List
--   [ ] Authentication
--   [ ] Optional cloud storage
--   [ ] Data backup and restore
