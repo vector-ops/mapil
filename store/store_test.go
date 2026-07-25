@@ -184,7 +184,20 @@ var testSet = map[string]testSuite{
 		},
 	},
 
-	"ReservedKeyMutationNotAllowed": {},
+	"ReservedKeyMutationNotAllowed": {
+		call: func(t *testing.T, ctx context.Context, name string, st *Store) {
+			t.Helper()
+
+			err := st.AddList(ctx, namespacesKey, []string{"val", "val2"}, "")
+			assert.ErrorIsf(t, err, ErrReservedKeyMutation, "expected error when using reserved key", name)
+			err = st.AddList(ctx, "key", []string{"val", "val2"}, namespacesNS)
+			assert.ErrorIsf(t, err, ErrReservedNamespaceMutation, "expected error when using reserved namespace", name)
+		},
+		verify: func(t *testing.T, ctx context.Context, name string, st *Store) {},
+		cleanup: func(ctx context.Context, st *Store) {
+			st.DeleteAll(ctx)
+		},
+	},
 
 	"DeleteAll": {
 		call: func(t *testing.T, ctx context.Context, name string, st *Store) {
