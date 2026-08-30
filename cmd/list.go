@@ -26,7 +26,7 @@ var listCmd = &cobra.Command{
 	Long:    `All objects stored are listed`,
 	Aliases: []string{"ls"},
 	Run: func(cmd *cobra.Command, args []string) {
-		data := []database.ListType{}
+		var data []database.ListType
 
 		if *lsns != "" {
 			data = dataStore.GetNamespaceObjects(cmd.Context(), *lsns)
