@@ -20,6 +20,17 @@ func WriteToFile(data []byte, filePath string) error {
 	return nil
 }
 
+func CreateFile(fp string) error {
+
+	file, err := os.Create(fp)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return nil
+}
+
 func CreateDir(dirPath string) error {
 	err := os.MkdirAll(dirPath, 0o777)
 	if err != nil {

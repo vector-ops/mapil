@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"runtime/debug"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/vector-ops/mapil/store"
 )
 
@@ -44,7 +42,6 @@ func Execute(ctx context.Context, st *store.Store) {
 
 func init() {
 	setVersion()
-	cobra.OnInitialize(initConfig)
 	rootCmd.Version = info.Main.Version
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(listCmd)
@@ -56,33 +53,6 @@ func init() {
 	rootCmd.AddCommand(popCmd)
 	rootCmd.AddCommand(rmCmd)
 
-}
-
-func initConfig() {
-	home, err := os.UserConfigDir()
-	cobra.CheckErr(err)
-	cfgFile := path.Join(home, "mapil", "config.yaml")
-	cfgDir := path.Join(home, "mapil")
-	createCfgFile(cfgDir)
-	viper.SetConfigFile(cfgFile)
-
-	viper.AddConfigPath(cfgDir)
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("config")
-
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("Error reading config file")
-	}
-}
-
-func createCfgFile(cfgDir string) {
-	f, err := os.OpenFile(path.Join(cfgDir, "config.yaml"), os.O_CREATE, os.ModePerm)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
 }
 
 func setVersion() {
