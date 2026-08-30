@@ -3,6 +3,7 @@ package helpers
 
 import (
 	"os"
+	"path/filepath"
 )
 
 func WriteToFile(data []byte, filePath string) error {
@@ -20,7 +21,13 @@ func WriteToFile(data []byte, filePath string) error {
 	return nil
 }
 
+// CreateFile creates a file from the file path, it also creates all the
+// directories to the file if they do not exist..
 func CreateFile(fp string) error {
+	err := CreateDir(filepath.Dir(fp))
+	if err != nil {
+		return err
+	}
 
 	file, err := os.Create(fp)
 	if err != nil {

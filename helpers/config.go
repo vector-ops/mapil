@@ -3,43 +3,53 @@ package helpers
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 
 	"go.yaml.in/yaml/v4"
 )
 
+const DefaultDataDir = ".mapil"
+
 type Config struct {
 	DataDir   string              `yaml:"data_dir"`
 	Databases map[string]DBConfig `yaml:"databases"`
+	WriteBack bool                `yaml:"-"`
 }
 
 type DBConfig struct {
-	URL         string      `yaml:"url"`
+	URL         string      `yaml:"url,omitempty"`
 	Driver      string      `yaml:"driver"`
-	Filename    string      `yaml:"filename"`
-	Remote      bool        `yaml:"remote"`
+	Filename    string      `yaml:"filename,omitempty"`
+	Remote      bool        `yaml:"remote,omitempty"`
 	Primary     bool        `yaml:"primary"`
-	Host        string      `yaml:"host"`
-	Port        string      `yaml:"port"`
-	Credentials Credentials `yaml:"credentials"`
+	Host        string      `yaml:"host,omitempty"`
+	Port        string      `yaml:"port,omitempty"`
+	Credentials Credentials `yaml:"credentials,omitempty"`
 }
 
 type Credentials struct {
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
 }
 
 func ParseConfig(fp string) Config {
 
 	f, err := os.OpenFile(fp, os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		panic(err)
+		fmt.Println("failed to open config file")
+		os.Exit(1)
 	}
 	defer f.Close()
 
 	var cfg Config
 	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
-		panic(err)
+		if errors.Is(err, io.EOF) {
+			return cfg
+		}
+		fmt.Println("failed to decode config")
+		os.Exit(1)
 	}
 
 	return cfg
@@ -63,7 +73,7 @@ func ValidateConfig(cfg Config) error {
 		}
 	}
 
-	if !atleastOnePrimary {
+	if !atleastOnePrimary && len(cfg.Databases) > 0 {
 		return errors.New("atleast one primary database is required")
 	}
 
@@ -77,7 +87,27 @@ func (c Config) PrimaryDB() DBConfig {
 		}
 	}
 
-	return DBConfig{}
+	return DBConfig{Driver: "file", Primary: true}
+}
+
+func (c Config) LoadDefault() Config {
+	if c.DataDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			home = "."
+		}
+
+		c.DataDir = filepath.Join(home, DefaultDataDir)
+		c.WriteBack = true
+	}
+
+	if len(c.Databases) == 0 {
+		c.Databases = make(map[string]DBConfig)
+		c.Databases["file"] = c.PrimaryDB().LoadDefault()
+		c.WriteBack = true
+	}
+
+	return c
 }
 
 func (c DBConfig) LoadDefault() DBConfig {

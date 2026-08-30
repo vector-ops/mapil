@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	dir      = ".mapil"
-	fileName = "mapil.json"
+	MapilDataDir = ".mapil"
+	fileName     = "mapil.json"
 )
 
 type File struct {
@@ -40,7 +40,7 @@ func (f *File) Init() error {
 			return fmt.Errorf("failed to create data directory\n%s", err)
 		}
 
-		dirPath = path.Join(home, dir)
+		dirPath = path.Join(home, MapilDataDir)
 
 	} else {
 
