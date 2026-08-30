@@ -14,7 +14,7 @@ endif
 
 SRC = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
-.PHONY: all build clean install uninstall fmt simplify check run
+.PHONY: all build clean install uninstall fmt simplify check run test test-all
 
 all: check install
 
@@ -41,9 +41,14 @@ simplify:
 	@gofmt -s -l -w $(SRC)
 
 check:
-	@test -z $(shell gofmt -l main.go | tee /dev/stderr) || echo "[WARN] Fix formatting issues with 'make fmt'"
-	@for d in $$(go list ./... | grep -v /vendor/); do golint $${d}; done
+	@test -z $(shell gofmt -l ${SRC} | tee /dev/stderr) || echo "[WARN] Fix formatting issues with 'make fmt'"
+	@golangci-lint run ./...
 	@go tool vet ${SRC}
 
 run: install
 	@$(TARGET)
+
+test: clean
+	@go test ./...
+
+test-all: clean fmt build test
