@@ -43,7 +43,6 @@ func (f *File) Init() error {
 		dirPath = path.Join(home, MapilDataDir)
 
 	} else {
-
 		dirPath, _ = strings.CutSuffix(f.filePath, "."+fileName)
 	}
 

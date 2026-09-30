@@ -30,9 +30,11 @@ func main() {
 		return
 	}
 
+	var tmpDir string
+
 	if dev {
-		userCfgDir = os.TempDir()
-		fmt.Printf("Using temp directory for development, path: %s\n", filepath.Join(userCfgDir, MplCfgDir, CfgFile))
+		tmpDir = os.TempDir()
+		fmt.Printf("Using temp directory for development, path: %s\n", filepath.Join(tmpDir, MplCfgDir))
 	}
 
 	cfgPath := filepath.Join(userCfgDir, MplCfgDir, CfgFile)
@@ -44,6 +46,10 @@ func main() {
 		return
 	}
 	cfg = cfg.LoadDefault()
+
+	if dev {
+		cfg.DataDir = filepath.Join(tmpDir, MplCfgDir, "data")
+	}
 
 	if cfg.WriteBack {
 		writeBackConfig(cfg, cfgPath)
