@@ -71,14 +71,20 @@ func rmObj(ctx context.Context, args []string) {
 	}
 
 	if len(values) == 0 {
-		fmt.Printf("key '%s' has no values", key)
+		fmt.Printf("key '%s' has no values\n", key)
+		return
+	}
+
+	if id > len(values) {
+		fmt.Printf("id %d does not exist in the key '%s'\n", id, key)
 		return
 	}
 
 	valuePrompt := promptui.Select{
-		Label:     "Select the object you want to remove.",
-		Items:     values,
-		Templates: templates,
+		Label:        "Select the object you want to remove.",
+		Items:        values,
+		Templates:    templates,
+		HideSelected: true,
 	}
 
 	var found bool
@@ -89,19 +95,31 @@ func rmObj(ctx context.Context, args []string) {
 			return
 		}
 
+		slices.Sort(values)
+
 		id, found = slices.BinarySearch(values, val)
 		if !found {
+			fmt.Printf("value not found in key '%s'\n", key)
 			return
 		}
+
+		// id = idx+1
+		id += 1
 	}
 
-	if id == len(values)-1 {
-		values = values[:id]
+	if id == len(values) {
+		values = values[:id-1]
 	} else {
-		values = append(values[:id], values[id+1:]...)
+		values = append(values[:id-1], values[id:]...)
 	}
 
-	err = dataStore.UpdateList(ctx, key, values, "")
+	ns, err := dataStore.GetNamespace(ctx, key)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = dataStore.UpdateList(ctx, key, values, ns)
 	if err != nil {
 		fmt.Println(err)
 		return
