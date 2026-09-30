@@ -2,11 +2,11 @@ package database
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"path"
-	"strings"
+	"path/filepath"
 
 	"github.com/vector-ops/mapil/helpers"
 )
@@ -16,8 +16,10 @@ const (
 	fileName     = "mapil.json"
 )
 
+var ErrUnsupportedFileExt = errors.New("unsupported data file")
+
 type File struct {
-	filePath string
+	path string
 }
 
 func NewFileObject() *File {
@@ -26,33 +28,25 @@ func NewFileObject() *File {
 
 func NewFileObjectWithFile(filePath string) *File {
 	return &File{
-		filePath: filePath,
+		path: filePath,
 	}
 }
 
 func (f *File) Init() error {
 
-	var dirPath string
+	fmt.Println("file path", f.path)
 
-	if f.filePath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to create data directory\n%s", err)
-		}
-
-		dirPath = path.Join(home, MapilDataDir)
-
-	} else {
-		dirPath, _ = strings.CutSuffix(f.filePath, "."+fileName)
+	if filepath.Ext(f.path) != ".json" {
+		return ErrUnsupportedFileExt
 	}
+
+	dirPath := filepath.Dir(f.path)
 
 	if !helpers.PathExists(dirPath) {
 		if err := helpers.CreateDir(dirPath); err != nil {
 			return fmt.Errorf("failed to create data directory\n%s", err)
 		}
 	}
-
-	f.filePath = path.Join(dirPath, fileName)
 
 	if err := f.createFile(); err != nil {
 		return fmt.Errorf("failed to create data file\n%s", err)
@@ -62,7 +56,7 @@ func (f *File) Init() error {
 }
 
 func (f *File) createFile() error {
-	file, err := os.OpenFile(f.filePath, os.O_CREATE, os.ModePerm)
+	file, err := os.OpenFile(f.path, os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -78,7 +72,7 @@ func (f *File) SaveFile(data []KeyValue) error {
 		return err
 	}
 
-	if err := helpers.WriteToFile(b, f.filePath); err != nil {
+	if err := helpers.WriteToFile(b, f.path); err != nil {
 		return err
 	}
 	return nil
@@ -86,7 +80,7 @@ func (f *File) SaveFile(data []KeyValue) error {
 
 func (f *File) LoadFile() ([]KeyValue, error) {
 	var data []KeyValue
-	file, err := os.Open(f.filePath)
+	file, err := os.Open(f.path)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 
@@ -42,45 +41,14 @@ func NewStore(dev bool, cfg helpers.Config) *Store {
 
 	var db database.Database
 
+	fp := filepath.Join(cfg.DataDir, dbCfg.Filename)
+
 	switch dbCfg.Driver {
 	case "file":
-		fp := ""
-		if dev {
-			curDir, err := os.Getwd()
-			if err != nil {
-				curDir = "."
-			}
-
-			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
-		} else {
-			fp = filepath.Join(cfg.DataDir, dbCfg.Filename)
-		}
 		db = database.NewLocalFileDB(fp)
 	case "sqlite":
-		fp := ""
-		if dev {
-			curDir, err := os.Getwd()
-			if err != nil {
-				curDir = "."
-			}
-
-			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
-		} else {
-			fp = filepath.Join(cfg.DataDir, dbCfg.Filename)
-		}
 		db = database.NewSQLiteDB(fp)
 	default:
-		fp := ""
-		if dev {
-			curDir, err := os.Getwd()
-			if err != nil {
-				curDir = "."
-			}
-
-			fp = filepath.Join(curDir, ".mapil", dbCfg.Filename)
-		} else {
-			fp = filepath.Join(cfg.DataDir, dbCfg.Filename)
-		}
 		db = database.NewLocalFileDB(fp)
 	}
 

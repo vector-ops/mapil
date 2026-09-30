@@ -24,22 +24,17 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Kill, os.Interrupt)
 	defer cancel()
 
-	userCfgDir, err := os.UserConfigDir()
+	cfgPath, dataDir, err := resolvePaths(dev)
 	if err != nil {
-		fmt.Println("could not open user config directory")
+		fmt.Println(err.Error())
 		return
 	}
 
-	var tmpDir string
-
-	if dev {
-		tmpDir = os.TempDir()
-		fmt.Printf("Using temp directory for development, path: %s\n", filepath.Join(tmpDir, MplCfgDir))
+	if err := createConfigFile(cfgPath); err != nil {
+		fmt.Println(err.Error())
+		return
 	}
 
-	cfgPath := filepath.Join(userCfgDir, MplCfgDir, CfgFile)
-
-	createConfig(cfgPath)
 	cfg := helpers.ParseConfig(cfgPath)
 	if err := helpers.ValidateConfig(cfg); err != nil {
 		fmt.Println(err)
@@ -48,7 +43,7 @@ func main() {
 	cfg = cfg.LoadDefault()
 
 	if dev {
-		cfg.DataDir = filepath.Join(tmpDir, MplCfgDir, "data")
+		cfg.DataDir = dataDir
 	}
 
 	if cfg.WriteBack {
@@ -64,7 +59,9 @@ func main() {
 	cmd.Execute(ctx, store)
 }
 
-func createConfig(p string) error {
+// createConfigFile creates the config file at path p
+// if it does not exist already
+func createConfigFile(p string) error {
 	if helpers.PathExists(p) {
 		return nil
 	}
@@ -81,4 +78,33 @@ func writeBackConfig(cfg helpers.Config, fp string) bool {
 	}
 
 	return helpers.WriteToFile(b, fp) == nil
+}
+
+// resolvePaths returns config directory and data directory based on environment.
+// If dev is true it assumes development environment else production environment.
+// In case of production environment dataDir must be resolved from config.
+//
+// This function does not verify the existence of the paths.
+func resolvePaths(dev bool) (cfgPath string, dataDir string, err error) {
+
+	devDir := filepath.Join(os.TempDir(), "mapil")
+
+	if dev {
+		return filepath.Join(devDir, CfgFile), filepath.Join(devDir, "data"), nil
+	}
+
+	userCfgDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", "", fmt.Errorf("could not find user config directory")
+	}
+
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", "", fmt.Errorf("could not find user home directory")
+	}
+
+	cfgPath = filepath.Join(userCfgDir, MplCfgDir, CfgFile)
+	dataDir = filepath.Join(userHomeDir, ".mapil")
+
+	return
 }
