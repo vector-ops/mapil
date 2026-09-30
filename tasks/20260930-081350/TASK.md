@@ -1,6 +1,6 @@
 # On first run creates a directory in the name of the file
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 100
 - TAGS: v1.2.7, bug
 
